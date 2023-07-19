@@ -89,8 +89,10 @@ public class SubmitRunRequestHandler implements RequestHandler<RunId> {
                 wesRun.setWorkflowParams(resolvedWorkflowParams);
             }
             launchRun(wesRun);
+            System.out.println("In A");
             return wesRun.toRunId();
         } catch (Exception ex) {
+            System.out.println("In B");
             throw new ConflictException("Could not register new WorkflowRun");
         }
     }
@@ -201,12 +203,43 @@ public class SubmitRunRequestHandler implements RequestHandler<RunId> {
             // read the input params JSON into a map
             ObjectMapper mapper = new ObjectMapper();
             Map workflowParamsMap = mapper.readValue(workflowParams, Map.class);
+
             for (Object key : workflowParamsMap.keySet()) {
-                // if the value is found to have been a DRS URL, then resolve it
-                // and override the DRS URL with the raw path
-                String resolvedPathOrUrl = DrsUrlResolver.resolveAccessPathOrUrl(workflowParamsMap.get(key), serviceProps.getDrsDockerContainer());
-                if (resolvedPathOrUrl != null) {
-                    workflowParamsMap.put(key, resolvedPathOrUrl);
+            
+                String inputs = "";               
+
+                // Check the parameter inputs for a space and split if exists
+                // Each indivudal entry will then be checked for a DRS URI
+                // If not a DRS URI the path will be used as is
+                // Otherwise resolved DRS path would be added to the newly formed input string 
+                
+                if (((String)workflowParamsMap.get(key)).contains(" ")) {
+                    String [] parts = ((String)workflowParamsMap.get(key)).split(" ");
+                    String resolvedPathOrUrl  = DrsUrlResolver.resolveAccessPathOrUrl(parts[0], serviceProps.getDrsDockerContainer());    
+
+                    if (resolvedPathOrUrl == null) {
+                        inputs = parts[0];
+                    } else {
+                        inputs = resolvedPathOrUrl;
+                    }
+                      
+                    for (int i = 1; i < parts.length; i++) {
+                        resolvedPathOrUrl = DrsUrlResolver.resolveAccessPathOrUrl(parts[i], serviceProps.getDrsDockerContainer());
+
+                        if (resolvedPathOrUrl == null) {
+                            inputs = inputs + " " + parts[i];
+                        } else {
+                            inputs = inputs + " " + resolvedPathOrUrl;     
+                        }                        
+                    }            
+                    workflowParamsMap.put(key, inputs);
+                } else {  
+                    // if the value is found to have been a DRS URL, then resolve it
+                    // and override the DRS URL with the raw path
+                    String resolvedPathOrUrl = DrsUrlResolver.resolveAccessPathOrUrl(workflowParamsMap.get(key), serviceProps.getDrsDockerContainer());
+                    if (resolvedPathOrUrl != null) {
+                        workflowParamsMap.put(key, resolvedPathOrUrl);
+                    }
                 }
             }
             return mapper.writeValueAsString(workflowParamsMap);
