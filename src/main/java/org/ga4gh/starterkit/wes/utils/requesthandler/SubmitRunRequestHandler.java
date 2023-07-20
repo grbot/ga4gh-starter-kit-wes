@@ -89,10 +89,8 @@ public class SubmitRunRequestHandler implements RequestHandler<RunId> {
                 wesRun.setWorkflowParams(resolvedWorkflowParams);
             }
             launchRun(wesRun);
-            System.out.println("In A");
             return wesRun.toRunId();
         } catch (Exception ex) {
-            System.out.println("In B");
             throw new ConflictException("Could not register new WorkflowRun");
         }
     }
